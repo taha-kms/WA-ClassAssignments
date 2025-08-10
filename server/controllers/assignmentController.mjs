@@ -1,103 +1,91 @@
-import { countPairsForTeacher, createAssignment as create } from '../models/assignmentModel.mjs';
-import { assert } from '../utils/validators.mjs';
-import { listOpenForStudent, getAssignmentById } from '../models/assignmentModel.mjs';
-import { getAnswer, upsertAnswer } from '../models/answerModel.mjs';
-import { evaluateAndClose } from '../models/assignmentModel.mjs';
-import { closedAssignmentsAndAvgForStudent } from '../models/assignmentModel.mjs';
+
+import { closedAssignmentsAndAvgForStudent } from "../models/assignmentModel.mjs";
+import { asyncHandler } from '../middleware/asyncHandler.mjs';
+
+import { 
+  parseId,
+  isNonEmptyString, 
+  parseStudentIds, 
+  assert, 
+  parseIntInRange 
+} from '../utils/validators.mjs';
+
+import {
+  countPairsForTeacher,
+  createAssignment as create,
+  getAssignmentById,
+  evaluateAndClose,
+  listOpenForStudent
+} from '../models/assignmentModel.mjs';
+
+import { 
+  getAnswer, 
+  upsertAnswer 
+} from '../models/answerModel.mjs';
 
 
-export async function createAssignment(req, res, next) {
-  try {
-    const { question, studentIds } = req.body;
-    const teacherId = req.user.id;
 
-    // Basic validation
-    assert(typeof question === 'string' && question.trim().length > 0, 'Question is required');
-    assert(Array.isArray(studentIds), 'studentIds must be an array');
-    assert(studentIds.length >= 2 && studentIds.length <= 6, 'Group size must be between 2 and 6');
+// POST /api/assignments (teacher)
+export const createAssignment = asyncHandler(async (req, res) => {
+  const teacherId = req.user.id;
+  const { question, studentIds } = req.body;
 
-    // Remove duplicates
-    const uniqueIds = [...new Set(studentIds)];
-    assert(uniqueIds.length === studentIds.length, 'Duplicate student IDs in group');
+  assert(isNonEmptyString(question), 'Question is required', 400);
+  const ids = parseStudentIds(studentIds);
 
-    // Pair constraint
-    const pairCounts = await countPairsForTeacher(teacherId);
-    for (let i = 0; i < uniqueIds.length; i++) {
-      for (let j = i + 1; j < uniqueIds.length; j++) {
-        const key = `${Math.min(uniqueIds[i], uniqueIds[j])},${Math.max(uniqueIds[i], uniqueIds[j])}`;
-        if ((pairCounts.get(key) || 0) >= 2) {
-          assert(false, `Students ${uniqueIds[i]} and ${uniqueIds[j]} already paired twice`);
-        }
-      }
+  // pair-constraint via view
+  const pairCounts = await countPairsForTeacher(teacherId);
+  for (let i = 0; i < ids.length; i++) {
+    for (let j = i + 1; j < ids.length; j++) {
+      const [a, b] = ids[i] < ids[j] ? [ids[i], ids[j]] : [ids[j], ids[i]];
+      assert((pairCounts.get(`${a},${b}`) || 0) < 2, `Students ${a} and ${b} already paired twice`, 400);
     }
-
-    const id = await create({ teacherId, question: question.trim(), studentIds: uniqueIds });
-    res.status(201).json({ id });
-  } catch (err) {
-    next(err);
   }
-}
 
+  const id = await create({ teacherId, question: question.trim(), studentIds: ids });
+  res.status(201).json({ id });
+});
 
+// GET /api/assignments/open (student)
+export const listOpenForStudentCtrl = asyncHandler(async (req, res) => {
+  const rows = await listOpenForStudent(req.user.id);
+  res.json(rows);
+});
 
-export async function listOpenForStudentCtrl(req, res, next) {
-  try {
-    const assignments = await listOpenForStudent(req.user.id);
-    res.json(assignments);
-  } catch (err) {
-    next(err);
-  }
-}
+// GET /api/assignments/:id (owner teacher OR group student)
+export const getAssignmentCtrl = asyncHandler(async (req, res) => {
+  const id = parseId(req.params.id, 'assignment id');
+  const assignment = await getAssignmentById(id);
+  if (!assignment) return res.status(404).json({ error: 'Not found' });
+  const answer = await getAnswer(id);
+  res.json({ ...assignment, answer: answer?.text ?? null });
+});
 
-export async function getAssignmentCtrl(req, res, next) {
-  try {
-    const assignment = await getAssignmentById(req.params.id);
-    if (!assignment) return res.status(404).json({ error: 'Not found' });
-    const answer = await getAnswer(req.params.id);
-    res.json({ ...assignment, answer: answer?.text || null });
-  } catch (err) {
-    next(err);
-  }
-}
+// PUT /api/assignments/:id/answer (student in group, only if open)
+export const upsertAnswerCtrl = asyncHandler(async (req, res) => {
+  const id = parseId(req.params.id, 'assignment id');
+  const assignment = await getAssignmentById(id);
+  if (!assignment) return res.status(404).json({ error: 'Not found' });
+  assert(assignment.status === 'open', 'Assignment is closed', 400);
+  const text = (req.body?.text ?? '').toString();
+  assert(isNonEmptyString(text), 'Answer text is required', 400);
+  await upsertAnswer(id, text.trim());
+  res.json({ ok: true });
+});
 
-export async function upsertAnswerCtrl(req, res, next) {
-  try {
-    const assignment = await getAssignmentById(req.params.id);
-    if (!assignment) return res.status(404).json({ error: 'Not found' });
-    assert(assignment.status === 'open', 'Assignment is closed', 400);
-
-    // Ensure user is in group (middleware ensures this, but double-check if needed)
-    await upsertAnswer(req.params.id, req.body.text || '');
-    res.status(200).json({ ok: true });
-  } catch (err) {
-    next(err);
-  }
-}
-
-
-export async function evaluateAssignment(req, res, next) {
-  try {
-    const assignmentId = Number(req.params.id);
-    const teacherId = req.user.id;
-    const { score } = req.body;
-
-    // validate score
-    const intScore = Number(score);
-    assert(Number.isInteger(intScore), 'Score must be an integer', 400);
-    assert(intScore >= 0 && intScore <= 30, 'Score must be between 0 and 30', 400);
-
-    await evaluateAndClose({ assignmentId, teacherId, score: intScore });
-    res.status(200).json({ ok: true });
-  } catch (err) {
-    next(err);
-  }
-}
-
-
+// PUT /api/assignments/:id/evaluation (teacher owner)
+export const evaluateAssignment = asyncHandler(async (req, res) => {
+  const assignmentId = parseId(req.params.id, 'assignment id');
+  const intScore = parseIntInRange(req.body?.score, 0, 30, 'Score');
+  await evaluateAndClose({ assignmentId, teacherId: req.user.id, score: intScore });
+  res.json({ ok: true });
+});
 
 export async function listScoresForStudent(req, res, next) {
   try {
-    const { list, overallAvg } = await closedAssignmentsAndAvgForStudent(req.user.id);
+    const { list, overallAvg } = await closedAssignmentsAndAvgForStudent(
+      req.user.id
+    );
     res.json({ overallAvg, assignments: list });
   } catch (err) {
     next(err);

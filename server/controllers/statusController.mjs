@@ -1,12 +1,9 @@
 import { classStatusForTeacher } from '../models/assignmentModel.mjs';
+import { asyncHandler } from '../middleware/asyncHandler.mjs';
 
-export async function classStatus(req, res, next) {
-  try {
-    const sort = (req.query.sort || 'name').toLowerCase();
-    const sortBy = ['name', 'total', 'avg'].includes(sort) ? sort : 'name';
-    const data = await classStatusForTeacher(req.user.id, sortBy);
-    res.json(data);
-  } catch (err) {
-    next(err);
-  }
-}
+export const classStatus = asyncHandler(async (req, res) => {
+  const sort = String(req.query.sort || 'name').toLowerCase();
+  const sortBy = ['name', 'total', 'avg'].includes(sort) ? sort : 'name';
+  const data = await classStatusForTeacher(req.user.id, sortBy);
+  res.json(data);
+});
