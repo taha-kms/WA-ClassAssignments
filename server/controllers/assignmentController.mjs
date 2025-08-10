@@ -1,5 +1,9 @@
 import { countPairsForTeacher, createAssignment as create } from '../models/assignmentModel.mjs';
 import { assert } from '../utils/validators.mjs';
+import { listOpenForStudent, getAssignmentById } from '../models/assignmentModel.mjs';
+import { getAnswer, upsertAnswer } from '../models/answerModel.mjs';
+
+
 
 export async function createAssignment(req, res, next) {
   try {
@@ -28,6 +32,42 @@ export async function createAssignment(req, res, next) {
 
     const id = await create({ teacherId, question: question.trim(), studentIds: uniqueIds });
     res.status(201).json({ id });
+  } catch (err) {
+    next(err);
+  }
+}
+
+
+
+export async function listOpenForStudentCtrl(req, res, next) {
+  try {
+    const assignments = await listOpenForStudent(req.user.id);
+    res.json(assignments);
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function getAssignmentCtrl(req, res, next) {
+  try {
+    const assignment = await getAssignmentById(req.params.id);
+    if (!assignment) return res.status(404).json({ error: 'Not found' });
+    const answer = await getAnswer(req.params.id);
+    res.json({ ...assignment, answer: answer?.text || null });
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function upsertAnswerCtrl(req, res, next) {
+  try {
+    const assignment = await getAssignmentById(req.params.id);
+    if (!assignment) return res.status(404).json({ error: 'Not found' });
+    assert(assignment.status === 'open', 'Assignment is closed', 400);
+
+    // Ensure user is in group (middleware ensures this, but double-check if needed)
+    await upsertAnswer(req.params.id, req.body.text || '');
+    res.status(200).json({ ok: true });
   } catch (err) {
     next(err);
   }
