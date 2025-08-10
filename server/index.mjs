@@ -20,6 +20,7 @@ import { ensureLoggedIn, ensureTeacher } from './middleware/authMiddleware.mjs';
 
 const app = express();
 const PORT = process.env.PORT || 3001;
+const isProd = process.env.NODE_ENV === 'production';
 
 app.use(cors(corsOptions));
 app.use(express.json());
@@ -28,7 +29,11 @@ app.use(session({
   secret: process.env.SESSION_SECRET || 'dev-secret-change-me',
   resave: false,
   saveUninitialized: false,
-  cookie: { httpOnly: true, sameSite: 'lax', secure: false }
+  cookie: {
+    httpOnly: true,
+    sameSite: isProd ? 'lax' : 'lax',
+    secure: isProd // set true only behind HTTPS
+  }
 }));
 
 app.use(passport.initialize());
