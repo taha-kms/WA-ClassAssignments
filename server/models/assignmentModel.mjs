@@ -8,9 +8,12 @@ export async function countPairsForTeacher(teacherId) {
     [teacherId]
   );
   const map = new Map();
-  for (const { a, b, together } of rows) map.set(`${a},${b}`, together);
+  for (const { a, b, together } of rows) {
+    map.set(`${a},${b}`, together);
+  }
   return map;
 }
+
 
 export async function createAssignment({ teacherId, question, studentIds }) {
   return new Promise((resolve, reject) => {
@@ -166,7 +169,6 @@ export async function evaluateAndClose({ assignmentId, teacherId, score }) {
 
 
 export async function classStatusForTeacher(teacherId, sortBy = 'name') {
-  // Pull pre-aggregated numbers from the view; include all students (0/0/null) with a LEFT JOIN
   const rows = await getAll(
     `
     SELECT
@@ -185,19 +187,27 @@ export async function classStatusForTeacher(teacherId, sortBy = 'name') {
     [teacherId]
   );
 
-  // same sorting as before
+  // same client-side sorting as before
   if (sortBy === 'total') {
-    rows.sort((a,b) => (b.openCount+b.closedCount)-(a.openCount+a.closedCount) || a.surname.localeCompare(b.surname));
+    rows.sort((a, b) =>
+      (b.openCount + b.closedCount) - (a.openCount + a.closedCount) ||
+      a.surname.localeCompare(b.surname) || a.name.localeCompare(b.name)
+    );
   } else if (sortBy === 'avg') {
-    rows.sort((a,b) => (a.avg==null)-(b.avg==null) || (b.avg??0)-(a.avg??0) || a.surname.localeCompare(b.surname));
+    rows.sort((a, b) => {
+      if (a.avg == null && b.avg == null) return a.surname.localeCompare(b.surname) || a.name.localeCompare(b.name);
+      if (a.avg == null) return 1;
+      if (b.avg == null) return -1;
+      return b.avg - a.avg || a.surname.localeCompare(b.surname) || a.name.localeCompare(b.name);
+    });
   } else {
-    rows.sort((a,b) => a.surname.localeCompare(b.surname) || a.name.localeCompare(b.name));
+    rows.sort((a, b) => a.surname.localeCompare(b.surname) || a.name.localeCompare(b.name));
   }
+
   return rows;
 }
 
 
-// models/assignmentModel.mjs
 export async function closedAssignmentsAndAvgForStudent(studentId) {
   const list = await getAll(
     `
@@ -206,13 +216,13 @@ export async function closedAssignmentsAndAvgForStudent(studentId) {
       a.question,
       a.score,
       ags.group_size AS groupSize,
-      t.id AS teacher_id,
+      t.id   AS teacher_id,
       t.name AS teacher_name,
       t.surname AS teacher_surname
     FROM assignments a
-    JOIN assignment_students asg ON asg.assignment_id = a.id
+    JOIN assignment_students asg   ON asg.assignment_id = a.id
     JOIN assignment_group_sizes ags ON ags.assignment_id = a.id
-    JOIN users t ON t.id = a.teacher_id
+    JOIN users t                    ON t.id = a.teacher_id
     WHERE asg.student_id = ?
       AND a.status = 'closed'
     ORDER BY a.id DESC
@@ -227,5 +237,6 @@ export async function closedAssignmentsAndAvgForStudent(studentId) {
     den += w;
   }
   const overallAvg = den > 0 ? Math.round((num / den) * 100) / 100 : null;
+
   return { list, overallAvg };
 }

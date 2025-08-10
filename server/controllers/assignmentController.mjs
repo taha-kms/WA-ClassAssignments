@@ -3,6 +3,7 @@ import { assert } from '../utils/validators.mjs';
 import { listOpenForStudent, getAssignmentById } from '../models/assignmentModel.mjs';
 import { getAnswer, upsertAnswer } from '../models/answerModel.mjs';
 import { evaluateAndClose } from '../models/assignmentModel.mjs';
+import { closedAssignmentsAndAvgForStudent } from '../models/assignmentModel.mjs';
 
 
 export async function createAssignment(req, res, next) {
@@ -93,7 +94,6 @@ export async function evaluateAssignment(req, res, next) {
 }
 
 
-import { closedAssignmentsAndAvgForStudent } from '../models/assignmentModel.mjs';
 
 export async function listScoresForStudent(req, res, next) {
   try {
@@ -103,3 +103,4 @@ export async function listScoresForStudent(req, res, next) {
     next(err);
   }
 }
+
