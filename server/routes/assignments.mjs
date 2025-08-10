@@ -1,6 +1,7 @@
 import { Router } from "express";
 
 import { evaluateAssignment } from '../controllers/assignmentController.mjs';
+import { listScoresForStudent } from '../controllers/assignmentController.mjs';
 
 
 import {
@@ -53,4 +54,7 @@ router.put('/assignments/:id/evaluation',
   ensureTeacher,
   evaluateAssignment
 );
+
+router.get('/scores', ensureLoggedIn, ensureStudent, listScoresForStudent);
+
 export default router;
