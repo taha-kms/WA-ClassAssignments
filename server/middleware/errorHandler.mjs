@@ -3,6 +3,13 @@ export function notFoundHandler(_req, res, _next) {
 }
 
 export function errorHandler(err, _req, res, _next) {
-  console.error(err);
-  res.status(err.status || 500).json({ error: err.message || 'Server error' });
+  // normalize known assertion errors
+  const status = err.status && Number.isInteger(err.status) ? err.status : 500;
+
+  // Avoid leaking stack traces in production; keep console in dev
+  if (status >= 500) {
+    console.error(err);
+  }
+
+  res.status(status).json({ error: err.message || 'Server error' });
 }
