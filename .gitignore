@@ -28,3 +28,6 @@ Thumbs.db
 *.swo
 .idea/
 .vscode/
+
+# temporary files
+cookie.txt

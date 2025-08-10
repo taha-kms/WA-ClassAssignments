@@ -8,6 +8,8 @@ import { corsOptions } from './config/corsConfig.mjs';
 import './config/passportConfig.mjs';
 import authRoutes from './routes/auth.mjs';
 import { notFoundHandler, errorHandler } from './middleware/errorHandler.mjs';
+import { ensureLoggedIn, ensureTeacher } from './middleware/authMiddleware.mjs';
+
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -26,6 +28,7 @@ app.use(passport.initialize());
 app.use(passport.session());
 
 app.use('/api', authRoutes);
+
 
 app.use(notFoundHandler);
 app.use(errorHandler);
