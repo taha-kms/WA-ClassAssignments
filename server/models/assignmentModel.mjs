@@ -58,3 +58,34 @@ export async function createAssignment({ teacherId, question, studentIds }) {
     });
   });
 }
+
+
+export async function listOpenForStudent(studentId) {
+  const sql = `
+    SELECT A.id, A.question, A.status,
+           GROUP_CONCAT(S.name || ' ' || S.surname, ', ') AS groupMembers
+    FROM assignments AS A
+    JOIN assignment_students AS ASG ON A.id = ASG.assignment_id
+    JOIN users AS S ON ASG.student_id = S.id
+    WHERE A.status = 'open'
+      AND A.id IN (
+        SELECT assignment_id
+        FROM assignment_students
+        WHERE student_id = ?
+      )
+    GROUP BY A.id
+  `;
+  return getAll(sql, [studentId]);
+}
+
+export async function getAssignmentById(id) {
+  const sql = `
+    SELECT A.*, GROUP_CONCAT(S.id) AS studentIds
+    FROM assignments AS A
+    JOIN assignment_students AS ASG ON A.id = ASG.assignment_id
+    JOIN users AS S ON ASG.student_id = S.id
+    WHERE A.id = ?
+    GROUP BY A.id
+  `;
+  return get(sql, [id]);
+}
