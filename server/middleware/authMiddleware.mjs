@@ -19,8 +19,23 @@ export function ensureStudent(req, res, next) {
   return res.status(403).json({ error: 'Students only' });
 }
 
-// For GET /assignments/:id, only group members or owner teacher can view
+import { getAssignmentById } from '../models/assignmentModel.mjs';
+
 export async function ensureInAssignmentOrOwner(req, res, next) {
-  // placeholder — will implement in Phase 5 when assignmentModel is ready
-  return next();
+  const assignment = await getAssignmentById(req.params.id);
+  if (!assignment) return res.status(404).json({ error: 'Assignment not found' });
+
+  const studentIds = assignment.studentIds.split(',').map(Number);
+
+  const isOwner = req.user.role === 'teacher' && req.user.id === assignment.teacher_id;
+  const inGroup = req.user.role === 'student' && studentIds.includes(req.user.id);
+
+  if (isOwner || inGroup) {
+    return next();
+  }
+
+  return res.status(403).json({ error: 'Forbidden' });
 }
+
+
+
