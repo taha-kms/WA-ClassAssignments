@@ -197,25 +197,21 @@ export async function classStatusForTeacher(teacherId, sortBy = 'name') {
 }
 
 
+// models/assignmentModel.mjs
 export async function closedAssignmentsAndAvgForStudent(studentId) {
   const list = await getAll(
     `
-    WITH group_sizes AS (
-      SELECT assignment_id, COUNT(*) AS g
-      FROM assignment_students
-      GROUP BY assignment_id
-    )
     SELECT
       a.id AS assignment_id,
       a.question,
       a.score,
-      gs.g AS groupSize,
+      ags.group_size AS groupSize,
       t.id AS teacher_id,
       t.name AS teacher_name,
       t.surname AS teacher_surname
     FROM assignments a
     JOIN assignment_students asg ON asg.assignment_id = a.id
-    JOIN group_sizes gs ON gs.assignment_id = a.id
+    JOIN assignment_group_sizes ags ON ags.assignment_id = a.id
     JOIN users t ON t.id = a.teacher_id
     WHERE asg.student_id = ?
       AND a.status = 'closed'
@@ -224,7 +220,6 @@ export async function closedAssignmentsAndAvgForStudent(studentId) {
     [studentId]
   );
 
-  // compute weighted average: sum(score*(1/g))/sum(1/g)
   let num = 0, den = 0;
   for (const row of list) {
     const w = 1.0 / row.groupSize;
@@ -232,6 +227,5 @@ export async function closedAssignmentsAndAvgForStudent(studentId) {
     den += w;
   }
   const overallAvg = den > 0 ? Math.round((num / den) * 100) / 100 : null;
-
   return { list, overallAvg };
 }

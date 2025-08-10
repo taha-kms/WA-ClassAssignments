@@ -61,26 +61,37 @@ GROUP BY a.teacher_id, s1.student_id, s2.student_id;
 
 -- View: student_stats
 -- Shows open/closed counts and weighted average score per student for their teacher's assignments
+DROP VIEW IF EXISTS student_stats;
 CREATE VIEW student_stats AS
 SELECT
-    u.id AS student_id,
-    u.name,
-    u.surname,
-    a.teacher_id,
-    SUM(CASE WHEN a.status = 'open' THEN 1 ELSE 0 END) AS open_count,
-    SUM(CASE WHEN a.status = 'closed' THEN 1 ELSE 0 END) AS closed_count,
-    ROUND(SUM(CASE WHEN a.status = 'closed' THEN a.score * (1.0 / group_size) ELSE 0 END) /
-          NULLIF(SUM(CASE WHEN a.status = 'closed' THEN (1.0 / group_size) ELSE 0 END), 0), 2) AS weighted_avg
+  u.id AS student_id,
+  u.name,
+  u.surname,
+  a.teacher_id,
+  SUM(CASE WHEN a.status = 'open'   THEN 1 ELSE 0 END) AS open_count,
+  SUM(CASE WHEN a.status = 'closed' THEN 1 ELSE 0 END) AS closed_count,
+  ROUND(
+    SUM(CASE WHEN a.status = 'closed' THEN a.score * (1.0 / ags.group_size) ELSE 0 END)
+    /
+    NULLIF(SUM(CASE WHEN a.status = 'closed' THEN (1.0 / ags.group_size) ELSE 0 END), 0)
+  , 2) AS weighted_avg
 FROM users u
 JOIN assignment_students ast ON u.id = ast.student_id
-JOIN assignments a ON ast.assignment_id = a.id
-JOIN (
-    SELECT assignment_id, COUNT(*) AS group_size
-    FROM assignment_students
-    GROUP BY assignment_id
-) gs ON a.id = gs.assignment_id
+JOIN assignments a            ON ast.assignment_id = a.id
+JOIN assignment_group_sizes ags ON ags.assignment_id = a.id
 WHERE u.role = 'student'
 GROUP BY u.id, a.teacher_id;
+
+
+
+-- assignment_group_sizes: one row per assignment with its group size
+DROP VIEW IF EXISTS assignment_group_sizes;
+CREATE VIEW assignment_group_sizes AS
+SELECT
+  assignment_id,
+  COUNT(*) AS group_size
+FROM assignment_students
+GROUP BY assignment_id;
 
 
 -------------------------------------------------------
