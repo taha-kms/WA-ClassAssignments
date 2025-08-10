@@ -89,6 +89,7 @@
 ```
 ---
 ## 4. Directories
+```bash
 ClassAssignments/
 │
 ├── README.md                # Project description, APIs, routes, screenshots, credentials
@@ -155,7 +156,7 @@ ClassAssignments/
 └── docs/                       # Documentation & screenshots
     ├── create-assignment.png
     └── class-status.png
-
+```
 ---
 ## Notes
 - React 19 front-end, Node.js 22.x (LTS) + Express back-end, SQLite DB.
