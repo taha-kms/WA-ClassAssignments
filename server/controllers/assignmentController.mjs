@@ -91,3 +91,15 @@ export async function evaluateAssignment(req, res, next) {
     next(err);
   }
 }
+
+
+import { closedAssignmentsAndAvgForStudent } from '../models/assignmentModel.mjs';
+
+export async function listScoresForStudent(req, res, next) {
+  try {
+    const { list, overallAvg } = await closedAssignmentsAndAvgForStudent(req.user.id);
+    res.json({ overallAvg, assignments: list });
+  } catch (err) {
+    next(err);
+  }
+}
