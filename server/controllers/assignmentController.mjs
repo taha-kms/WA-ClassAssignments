@@ -2,7 +2,7 @@ import { countPairsForTeacher, createAssignment as create } from '../models/assi
 import { assert } from '../utils/validators.mjs';
 import { listOpenForStudent, getAssignmentById } from '../models/assignmentModel.mjs';
 import { getAnswer, upsertAnswer } from '../models/answerModel.mjs';
-
+import { evaluateAndClose } from '../models/assignmentModel.mjs';
 
 
 export async function createAssignment(req, res, next) {
@@ -67,6 +67,25 @@ export async function upsertAnswerCtrl(req, res, next) {
 
     // Ensure user is in group (middleware ensures this, but double-check if needed)
     await upsertAnswer(req.params.id, req.body.text || '');
+    res.status(200).json({ ok: true });
+  } catch (err) {
+    next(err);
+  }
+}
+
+
+export async function evaluateAssignment(req, res, next) {
+  try {
+    const assignmentId = Number(req.params.id);
+    const teacherId = req.user.id;
+    const { score } = req.body;
+
+    // validate score
+    const intScore = Number(score);
+    assert(Number.isInteger(intScore), 'Score must be an integer', 400);
+    assert(intScore >= 0 && intScore <= 30, 'Score must be between 0 and 30', 400);
+
+    await evaluateAndClose({ assignmentId, teacherId, score: intScore });
     res.status(200).json({ ok: true });
   } catch (err) {
     next(err);
