@@ -8,7 +8,8 @@ import passport from 'passport';
 import { corsOptions } from './config/corsConfig.mjs';
 import './config/passportConfig.mjs';
 
-
+// Import routes
+import assignmentRoutes from './routes/assignments.mjs';
 import authRoutes from './routes/auth.mjs';
 import studentRoutes from './routes/students.mjs';
 
@@ -35,7 +36,7 @@ app.use(passport.session());
 
 app.use('/api', authRoutes);
 app.use('/api', studentRoutes);
-
+app.use('/api', assignmentRoutes);
 
 app.use(notFoundHandler);
 app.use(errorHandler);
