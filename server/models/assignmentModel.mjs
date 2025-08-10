@@ -1,4 +1,4 @@
-import { run, getAll, get } from './db.mjs';
+import {db, run, getAll, get } from './db.mjs';
 
 export async function countPairsForTeacher(teacherId) {
   const sql = `
@@ -21,8 +21,6 @@ export async function countPairsForTeacher(teacherId) {
 
 export async function createAssignment({ teacherId, question, studentIds }) {
   return new Promise((resolve, reject) => {
-    // wrap in transaction
-    const db = (async () => (await import('./db.mjs')).db)();
     db.serialize(() => {
       db.run('BEGIN TRANSACTION');
       db.run(
