@@ -4,9 +4,15 @@ import cors from 'cors';
 import session from 'express-session';
 import passport from 'passport';
 
+
 import { corsOptions } from './config/corsConfig.mjs';
 import './config/passportConfig.mjs';
+
+
 import authRoutes from './routes/auth.mjs';
+import studentRoutes from './routes/students.mjs';
+
+
 import { notFoundHandler, errorHandler } from './middleware/errorHandler.mjs';
 import { ensureLoggedIn, ensureTeacher } from './middleware/authMiddleware.mjs';
 
@@ -28,6 +34,7 @@ app.use(passport.initialize());
 app.use(passport.session());
 
 app.use('/api', authRoutes);
+app.use('/api', studentRoutes);
 
 
 app.use(notFoundHandler);
