@@ -10,12 +10,20 @@ const dbPath = resolve(__dirname, '../db/database.sqlite');
 
 export const db = new sqlite3.Database(dbPath);
 
+export function run(sql, params = []) {
+  return new Promise((resolve, reject) => {
+    db.run(sql, params, function (err) {
+      if (err) reject(err);
+      else resolve({ id: this.lastID, changes: this.changes });
+    });
+  });
+}
+
 export function get(sql, params = []) {
   return new Promise((resolve, reject) => {
     db.get(sql, params, (err, row) => (err ? reject(err) : resolve(row)));
   });
 }
-
 
 export function getAll(sql, params = []) {
   return new Promise((resolve, reject) => {
